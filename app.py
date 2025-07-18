@@ -3,6 +3,11 @@ import os
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+import time
+from webdriver_manager.chrome import ChromeDriverManager
 
 app = Flask(__name__)
 
@@ -132,6 +137,64 @@ def scrape_collection():
     df = pd.DataFrame(all_data)
     df.to_csv(CSV_FILE, index=False)
     return jsonify({'message': 'Scraping complete', 'csv': CSV_FILE, 'products_scraped': len(all_data)})
+
+@app.route('/scrape_all_pages', methods=['GET'])
+def scrape_all_pages():
+    service = Service(ChromeDriverManager().install())
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    driver = webdriver.Chrome(service=service, options=options)
+
+    url = "https://keyzarjewelry.com/collections/center-stones"
+    driver.get(url)
+    time.sleep(5)
+
+    base_url = "https://keyzarjewelry.com"
+    all_product_links = set()
+    page_num = 1
+    all_data = []
+
+    while True:
+        print(f"Scraping page {page_num} ...")
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        product_links = []
+        for a in soup.find_all('a', href=True):
+            href = a['href']
+            if href.startswith('/products/') and (base_url + href) not in all_product_links:
+                product_links.append(base_url + href)
+                all_product_links.add(base_url + href)
+        print(f"Found {len(product_links)} new products on page {page_num}")
+        for url in product_links:
+            print(f"  Scraping product: {url}")
+            data = scrape_product(url)
+            if data:
+                all_data.append(data)
+        try:
+            next_button = driver.find_element(
+                By.XPATH,
+                "//button[.//svg//*[name()='path' and @d='M7.87891 24.5722L18.1213 14.3298L7.87891 4.0874']]"
+            )
+            if next_button.get_attribute("disabled"):
+                print("Next button is disabled. No more pages.")
+                break
+            driver.execute_script("arguments[0].click();", next_button)
+            print("Clicked next button.")
+            page_num += 1
+            time.sleep(5)
+        except Exception as e:
+            print(f"Could not find or click next button: {e}")
+            break
+    driver.quit()
+    if all_data:
+        print(f"Saving {len(all_data)} products to {CSV_FILE}")
+        df = pd.DataFrame(all_data)
+        df.to_csv(CSV_FILE, index=False)
+        return jsonify({'message': f'Scraped {len(all_data)} products from all pages', 'csv': CSV_FILE})
+    else:
+        print("No products found to save.")
+        return jsonify({'error': 'No products found'})
 
 if __name__ == '__main__':
     app.run(debug=True) 
