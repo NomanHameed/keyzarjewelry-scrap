@@ -171,27 +171,33 @@ def scrape_all_pages():
             data = scrape_product(url)
             if data:
                 all_data.append(data)
+        if page_num == max_pages:
+            print(f"Reached max_pages ({max_pages}). Stopping.")
+            break
         try:
-            next_button = driver.find_element(
-                By.XPATH,
-                "//button[.//svg//*[name()='path' and @d='M7.87891 24.5722L18.1213 14.3298L7.87891 4.0874']]"
-            )
-            if next_button.get_attribute("disabled"):
-                print("Next button is disabled. No more pages.")
+            # Find all pagination buttons in the pagination container
+            pagination_buttons = driver.find_elements(By.CSS_SELECTOR, "div.p-2.text-center button")
+            if len(pagination_buttons) >= 2:
+                next_button = pagination_buttons[1]  # The second button is usually "Next"
+                if next_button.get_attribute("disabled"):
+                    print("Next button is disabled. No more pages.")
+                    break
+                driver.execute_script("arguments[0].click();", next_button)
+                print("Clicked next button.")
+                page_num += 1
+                time.sleep(5)
+            else:
+                print(f"Could not find pagination buttons on page {page_num}")
                 break
-            driver.execute_script("arguments[0].click();", next_button)
-            print("Clicked next button.")
-            page_num += 1
-            time.sleep(5)
         except Exception as e:
-            print(f"Could not find or click next button: {e}")
+            print(f"Could not find or click next button on page {page_num}: {e}")
             break
     driver.quit()
     if all_data:
         print(f"Saving {len(all_data)} products to {CSV_FILE}")
         df = pd.DataFrame(all_data)
         df.to_csv(CSV_FILE, index=False)
-        return jsonify({'message': f'Scraped {len(all_data)} products from all pages', 'csv': CSV_FILE})
+        return jsonify({'message': f'Scraped {len(all_data)} products from first {max_pages} pages', 'csv': CSV_FILE})
     else:
         print("No products found to save.")
         return jsonify({'error': 'No products found'})
