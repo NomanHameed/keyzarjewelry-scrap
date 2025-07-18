@@ -6,8 +6,8 @@ import pandas as pd
 
 app = Flask(__name__)
 
-PRODUCT_URL = "https://keyzarjewelry.com/products/natural_loosediamond_elongatedcushion_00-50_vvs2_i_55f2636ebdf6"
-# PRODUCT_URL = "https://keyzarjewelry.com/products/lab_loosediamond_round_02-02_if_g_7cd1af0f2501"
+# PRODUCT_URL = "https://keyzarjewelry.com/products/natural_loosediamond_elongatedcushion_00-50_vvs2_i_55f2636ebdf6"
+PRODUCT_URL = "https://keyzarjewelry.com/products/lab_loosediamond_round_02-02_if_g_7cd1af0f2501"
 IMAGES_DIR = "images"
 CSV_FILE = "product_data.csv"
 
@@ -74,14 +74,34 @@ def scrape():
                 if title in diamond_details:
                     diamond_details[title] = value
 
-    # 4. Save to CSV
+    svg_tag = ''
+    heading = ''
+    # Extract product title and SVG icon from cpst-title-container
+    title_container = soup.find('div', class_='cpst-title-container')
+    if title_container:
+        # Product Title
+        title_text_container = title_container.find('div', class_='cpst-title-text-container')
+        if title_text_container:
+            h1_tag = title_text_container.find('h1', class_='cpst-title')
+            if h1_tag:
+                heading = h1_tag.get_text(strip=True)
+        # # Product SVG
+        # icon_container = title_container.find('div', class_='cpst-title-icon-container')
+        # if icon_container:
+        #     svg_tag = icon_container.find('svg')
+
+
+# 4. Save to CSV
     data = {
+        'Product Title' : str(heading),
         **diamond_info,
         **diamond_details,
-        'images': ';'.join(image_urls)
+        'images': ';'.join(image_urls),
     }
+    
     df = pd.DataFrame([data])
     df.to_csv(CSV_FILE, index=False)
+
 
     return jsonify({'message': 'Scraping complete', 'csv': CSV_FILE, 'images_saved': len(image_urls)})
 
