@@ -171,9 +171,7 @@ def scrape_all_pages():
             data = scrape_product(url)
             if data:
                 all_data.append(data)
-        if page_num == max_pages:
-            print(f"Reached max_pages ({max_pages}). Stopping.")
-            break
+
         try:
             # Find all pagination buttons in the pagination container
             pagination_buttons = driver.find_elements(By.CSS_SELECTOR, "div.p-2.text-center button")
@@ -194,7 +192,7 @@ def scrape_all_pages():
             break
     driver.quit()
     if all_data:
-        print(f"Saving {len(all_data)} products to {CSV_FILE}")
+
         df = pd.DataFrame(all_data)
         df.to_csv(CSV_FILE, index=False)
         return jsonify({'message': f'Scraped {len(all_data)} products from first {max_pages} pages', 'csv': CSV_FILE})
