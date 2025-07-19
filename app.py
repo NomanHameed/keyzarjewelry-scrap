@@ -351,7 +351,7 @@ def index():
           <input type="text" id="handle" name="handle" placeholder="e.g. center-stones" required>
           <button type="submit">Scrape All Pages (Live Log)</button>
         </form>
-        <pre id="log" style="background:#222;color:#0f0;padding:10px;min-height:200px;margin-top:20px;"></pre>
+        <pre id="log" style="background:#222;color:#0f0;padding:10px;min-height:200px;max-height:400px;margin-top:20px;overflow-y:auto;"></pre>
         <div style="margin-top:40px;">
           <form action="/download_csv" method="get">
             <label for="filename">Download CSV:</label>
