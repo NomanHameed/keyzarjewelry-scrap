@@ -150,6 +150,8 @@ def scrape_collection():
 
 @app.route('/scrape_all_pages', methods=['GET'])
 def scrape_all_pages():
+    handle = request.args.get('handle', 'center-stones')
+    print(f"Starting full scrape process for collection: {handle}")
     service = Service(ChromeDriverManager().install())
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
@@ -157,7 +159,7 @@ def scrape_all_pages():
     options.add_argument('--disable-dev-shm-usage')
     driver = webdriver.Chrome(service=service, options=options)
 
-    url = "https://keyzarjewelry.com/collections/center-stones"
+    url = f"https://keyzarjewelry.com/collections/{handle}"
     driver.get(url)
     time.sleep(5)
 
@@ -203,7 +205,6 @@ def scrape_all_pages():
         print(f"Found {len(product_links)} new products on page {page_num}")
         page_data = []
         for url in product_links:
-            print(f"  Scraping product: {url}")
             # Retry logic for product requests
             for attempt in range(3):
                 try:
@@ -349,11 +350,10 @@ def index():
           <input type="text" name="handle" placeholder="e.g. center-stones" required>
           <button type="submit">Scrape First Page</button>
         </form>
-        <form id="scrapeForm" onsubmit="startStream(); return false;">
-          <input type="text" id="handle" name="handle" placeholder="e.g. center-stones" required>
-          <button type="submit">Scrape All Pages (Live Log)</button>
+        <form action="/scrape_all_pages" method="get" style="margin-bottom:20px;">
+          <input type="text" name="handle" placeholder="e.g. center-stones" required>
+          <button type="submit">Scrape All Pages</button>
         </form>
-        <pre id="log" style="background:#222;color:#0f0;padding:10px;min-height:200px;margin-top:20px;"></pre>
         <div style="margin-top:40px;">
           <form action="/download_csv" method="get">
             <label for="filename">Download CSV:</label>
@@ -363,23 +363,6 @@ def index():
             <button type="submit">Download Selected CSV</button>
           </form>
         </div>
-        <script>
-        function startStream() {{
-          document.getElementById("log").innerText = "";
-          var handle = document.getElementById("handle").value;
-          var eventSource = new EventSource("/scrape_all_pages_stream?handle=" + encodeURIComponent(handle));
-          eventSource.onmessage = function(e) {{
-            var logElem = document.getElementById("log");
-            logElem.innerText += e.data + "\\n";
-            logElem.scrollTop = logElem.scrollHeight;
-          }};
-          eventSource.onerror = function(e) {{
-            var logElem = document.getElementById("log");
-            logElem.innerText += "\\n[Stream ended or error occurred]\\n";
-            eventSource.close();
-          }};
-        }}
-        </script>
       </body>
     </html>
     '''
@@ -440,6 +423,7 @@ def scrape_all_pages_stream():
             yield "data: Starting from page 1\n\n"
         while True:
             yield f"data: Scraping page {page_num} ...\n\n"
+            print(f"data: Scraping page {page_num} ...\n\n")
             soup = BeautifulSoup(driver.page_source, 'html.parser')
             product_links = []
             for a in soup.find_all('a', href=True):
@@ -450,7 +434,6 @@ def scrape_all_pages_stream():
             yield f"data: Found {len(product_links)} new products on page {page_num}\n\n"
             page_data = []
             for url in product_links:
-                yield f"data:   Scraping product: {url}\n\n"
                 for attempt in range(3):
                     try:
                         response = requests.get(url, timeout=10)
@@ -575,4 +558,4 @@ def scrape_all_pages_stream():
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, debug="true")
