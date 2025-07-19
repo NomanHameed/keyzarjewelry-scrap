@@ -142,9 +142,11 @@ def scrape_collection():
             all_data.append(data)
     if not all_data:
         return jsonify({'error': 'No product data scraped'}), 500
+    csv_file = f"product_data_{handle}.csv"
     df = pd.DataFrame(all_data)
-    df.to_csv(CSV_FILE, index=False)
-    return jsonify({'message': 'Scraping complete', 'csv': CSV_FILE, 'products_scraped': len(all_data)})
+    df.to_csv(csv_file, index=False)
+    print("Files in directory after scraping:", os.listdir('.'))
+    return send_file(csv_file, as_attachment=True)
 
 @app.route('/scrape_all_pages', methods=['GET'])
 def scrape_all_pages():
@@ -548,6 +550,7 @@ def scrape_all_pages_stream():
                 else:
                     df.to_csv(CSV_FILE, mode='a', header=False, index=False)
                 yield f"data: Saved {len(page_data)} products from page {page_num} to {CSV_FILE}\n\n"
+                yield f"data: Files in directory after scraping: {os.listdir('.')}\n\n"
             # Save checkpoint
             with open(CHECKPOINT_FILE, 'w') as f:
                 f.write(str(page_num))
